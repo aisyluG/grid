@@ -20,12 +20,14 @@ class fileSettings(object):
         self.sgnfnt_data_lines = 0
 
 
+    # находим первый разделитель в файле
     def __separator(self, byteString):
         for sep in self.row_separators:
             if (sep in byteString) == True:
                 return sep
         return None
 
+    # проверяем, остались ли еще разделители в файле после разделения на строки заданным разделителем
     def __separatorChecking(self, separator, byteString):
         splittedS = byteString.split(sep=separator)
         for s in splittedS:
@@ -33,6 +35,7 @@ class fileSettings(object):
                 return False
         return True
 
+    # определение разделителя строк
     def __searchRowSeparator(self, string):
         Sep = self.__separator(string)
         if self.__separatorChecking(Sep, string) == True:
@@ -63,7 +66,7 @@ class fileSettings(object):
         code = self.detector.result['encoding']
         return code
 
-    # определяем, является ли полученная строка, строкой с числовыми данными
+    # определяем, является ли заданная строка, строкой с числовыми данными
     def __isStringOfNumbers(self, stringLine, column_separator):
         sgnf_data_line = [ch for ch in stringLine.split(column_separator) if ch != '']
         for number in sgnf_data_line:
@@ -83,7 +86,7 @@ class fileSettings(object):
         columns = [ch for ch in string.split(self.column_sep) if ch != '']
         return columns
 
-    # делим строку на столбцы
+    # делим строку на столбцы с заданным разделителем
     def __splitToColumns_specSep(self, string, column_separator):
         # убираем пустые строки, которые получается если несколько разделителей идут подряд
         columns = [ch for ch in string.split(column_separator) if ch != '']
@@ -259,7 +262,7 @@ class fileSettings(object):
             decimal_sep = self.__decimalSeparator(self.__splitToColumns(dataRows_end_reversed[rubbish_lines_afterData]))
 
 
-        return dict(column_separator=self.column_sep, row_separator=self.row_sep, decimal_separator=decimal_sep,
+        return dict(column_separator=self.column_sep, row_separator=self.row_sep.decode(self.code_standart), decimal_separator=decimal_sep,
                     code_standart=self.code_standart, number_of_rows_with_rubbish_toHead=self.rubbish_lines_toHead,
                     number_of_head_lines=self.head_lines,
                     number_of_rows_with_rubbish_afterHead=self.rubbish_lines_afterHead,
