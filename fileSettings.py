@@ -4,15 +4,15 @@ import pandas as pd
 
 class fileSettings(object):
     def __init__(self):
-        # возможные разделители строк
+        # возможные разделители строк (байты, потому что разделитель строк находим в строке байтов)
         self.row_separators = [b'\r\n', b'\n\r', b'\r', b'\n']
         # возможные разделители колонок
-        self.column_separators = pd.Series([b' ', b';', b',', b'\t', b'.'])
+        self.column_separators = pd.Series([' ', ';', ',', '\t', '.'])
         # детектор для определения кодировки
         self.detector = UniversalDetector()
-        self.column_sep = b''
-        self.row_sep = b''
-        self.decimal_sep = b''
+        self.column_sep = ''
+        self.row_sep = ''
+        self.decimal_sep = ''
         self.code_standart = ''
         self.rubbish_lines_afterHead = 0
         self.head_lines = 0
@@ -65,14 +65,14 @@ class fileSettings(object):
 
     # определяем, является ли полученная строка, строкой с числовыми данными
     def __isStringOfNumbers(self, stringLine, column_separator):
-        sgnf_data_line = [ch for ch in stringLine.split(column_separator) if ch != b'']
+        sgnf_data_line = [ch for ch in stringLine.split(column_separator) if ch != '']
         for number in sgnf_data_line:
             try:
                 float(number)
             except ValueError:
                 try:
-                    float(number.replace(b',', b'').replace(b':', b'').replace(b' ', b'').replace(b'.', b'').replace(b'-',
-                                                                                                                   b''))
+                    float(number.replace(',', '').replace(':', '').replace(' ', '').replace('.', '').replace('-',
+                                                                                                                   ''))
                 except ValueError:
                     return False
         return True
@@ -80,13 +80,13 @@ class fileSettings(object):
     # делим строку на столбцы
     def __splitToColumns(self, string):
         # убираем пустые строки, которые получается если несколько разделителей идут подряд
-        columns = [ch for ch in string.split(self.column_sep) if ch != b'']
+        columns = [ch for ch in string.split(self.column_sep) if ch != '']
         return columns
 
     # делим строку на столбцы
     def __splitToColumns_specSep(self, string, column_separator):
         # убираем пустые строки, которые получается если несколько разделителей идут подряд
-        columns = [ch for ch in string.split(column_separator) if ch != b'']
+        columns = [ch for ch in string.split(column_separator) if ch != '']
         return columns
 
     # определяем число строк с мусором в конце файла
@@ -109,7 +109,7 @@ class fileSettings(object):
     # определяем есть ли в строке буквы
     def __haveStringLetters(self, string):
         #ищем все буквы, кроме e, так как числа могут быть представлены в экспоненциальной форме
-        if re.search(r'[^\W\d_e]', string.decode(self.code_standart)) is None:
+        if re.search(r'[^\W\d_e]', string) is None:
             return False
         else:
             return True
@@ -127,11 +127,9 @@ class fileSettings(object):
             else:
                 rows_of_data_reverse = rows_of_data_reverse[i:]
                 break
-        print(rows_of_data_reverse)
         for line in rows_of_data_reverse:
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
-            print(number_of_columns)
             if count == number_of_columns and self.__haveStringLetters(line) == True:
                 return rubbishRows_afterHead, rows_of_data_reverse
             else:
@@ -163,28 +161,26 @@ class fileSettings(object):
                 float(number)
             except ValueError:
                 try:
-                    float(number.replace(b',', b'.'))
+                    float(number.replace(',', '.'))
                 except ValueError:
                     continue
                 else:
-                    return b','
-        return b'.'
+                    return ','
+        return '.'
 
     #определение разделителя колонок
     def __searchColumnSeparator(self, rows_of_data):
         for i, line in enumerate(rows_of_data):
-            # убираем пробелы в начале и конце строки
-            line.strip()
-            if self.__haveStringLetters(line)==True or re.search(r'[^\d\t- :;.,e]',line.decode(self.code_standart)) is None:
+            #
+            if self.__haveStringLetters(line)==True or re.search(r'[^\d\t- :;.,e]', line) is None:
                 continue
             else:
                 rows_of_data = rows_of_data[i:]
                 break
 
-        columns_sep = b' '
+        columns_sep = ' '
         columns_count = -1
         for line in rows_of_data:
-            line.strip()
             if columns_count == len(self.__splitToColumns_specSep(line, columns_sep)):
                 break
             else:
@@ -193,9 +189,9 @@ class fileSettings(object):
                     if count == 1 or self.__isStringOfNumbers(line,self.column_separators[i]) == False:
                         del self.column_separators[i]
                     else:
-                        chars = re.search(r'(\s+)', line.decode(self.code_standart))
-                        if columns_sep==b' ' and chars is not None:
-                            columns_sep = chars.group().encode(self.code_standart)
+                        chars = re.search(r'(\s+)', line)
+                        if columns_sep==' ' and chars is not None:
+                            columns_sep = chars.group()
                             columns_count = len(self.__splitToColumns_specSep(line, columns_sep))
                         else:
                             columns_sep = self.column_separators[i]
@@ -207,45 +203,51 @@ class fileSettings(object):
         # открываем файл в байтовом режиме
         with open(filename, 'rb') as dataBytes:
             s = dataBytes.read()
+
             dataRows_begin = s[:10000]
             dataRows_end = s[-10000:]
 
-            # находим разделитель строк
+            # определение разделителя строк
             self.row_sep = self.__searchRowSeparator(dataRows_begin)
             # делим на строки
             dataRows_begin = self.__splitToRows(dataRows_begin)
             dataRows_end = self.__splitToRows(dataRows_end)
 
             # опредеялем кодировку файла
-            self.code_standart = self.__codeStandart(dataRows_begin + dataRows_end)
+            self.code_standart = self.__codeStandart(dataRows_begin+dataRows_end)
+
+            #декодируем данные
+            dataRows_begin = [x.decode(self.code_standart) for x in dataRows_begin]
+            dataRows_end = [x.decode(self.code_standart) for x in dataRows_end]
 
             # удаляем лишние пробелы с начала и конца строк
-            dataRows_begin = list(map(lambda x: x.strip(), dataRows_begin))
-            dataRows_end = list(map(lambda x: x.strip(), dataRows_end))
+            # удаляем последнюю и первые строки соответственной, так как они могут быть неполными (так как читается N знаков,
+            # а не определенное число строк)
+            dataRows_begin = (list(map(lambda x: x.strip(), dataRows_begin)))[:-1]
+            dataRows_end = (list(map(lambda x: x.strip(), dataRows_end)))[1:]
 
             # определение разделителя колонок
+            # ищем с конца файла!!!!
             dataRows_end_reversed = dataRows_end.copy()
             dataRows_end_reversed.reverse()
-            # dtRowsNotByte = list(map(lambda x: x.decode(code), dataRows_begin))
-            # str = '\n'.join(map(lambda x: x.strip(), dtRowsNotByte))
-            # dialect = csv.Sniffer().sniff(str)
-            # print("'" + dialect.delimiter + "'")
-            # полученный разделитель колонок
             self.column_sep = self.__searchColumnSeparator(dataRows_end_reversed)
 
             # число строк с мусором после данных
+            # так же с конца файла!!!!
             rubbish_lines_afterData, number_of_columns = self.__rubbish_afterData(dataRows_end_reversed)
 
             # число строк с мусором после заголовка
-            dataRows_begin_reversed = dataRows_begin.copy()[:-1]
-            #удаляем первую(последнюю) строку, так как она может быть неполной
+            # работаем с перевернутым файлом!!!!
+            dataRows_begin_reversed = dataRows_begin.copy()
             dataRows_begin_reversed.reverse()
             self.rubbish_lines_afterHead, dataRows_begin_reversed = self.__rubbish_afterHead(dataRows_begin_reversed, number_of_columns)
 
             # число строк заголовка
+            # работаем с перевернутым файлом!!!!
             self.head_lines = self.__headRows(dataRows_begin_reversed[self.rubbish_lines_afterHead:], number_of_columns)
 
             # число строк с мусором до заголовка
+            # работаем с перевернутым файлом!!!!
             self.rubbish_lines_toHead = self.__rubbish_toHead(dataRows_begin_reversed[self.head_lines + self.rubbish_lines_afterHead:])
 
             # число строк значащих данных
@@ -253,6 +255,7 @@ class fileSettings(object):
                 self.__splitToRows(s)) - self.rubbish_lines_toHead - self.rubbish_lines_afterHead - rubbish_lines_afterData - self.head_lines
 
             # десятичный разделитель
+            # функция работает со строкой, в которой находятся значащие числовые данные
             decimal_sep = self.__decimalSeparator(self.__splitToColumns(dataRows_end_reversed[rubbish_lines_afterData]))
 
 
