@@ -2,7 +2,7 @@ from chardet.universaldetector import UniversalDetector
 import re
 import pandas as pd
 
-class fileSettings(object):
+class autoSettings(object):
     def __init__(self):
         # возможные разделители строк (байты, потому что разделитель строк находим в строке байтов)
         self.row_separators = [b'\r\n', b'\n\r', b'\r', b'\n']
@@ -10,14 +10,22 @@ class fileSettings(object):
         self.column_separators = pd.Series([' ', ';', ',', '\t', '.'])
         # детектор для определения кодировки
         self.detector = UniversalDetector()
+        # разделитель строк
         self.column_sep = ''
+        # разделитель колонок
         self.row_sep = ''
+        # десятичный разделитель
         self.decimal_sep = ''
+        # кодировка файла
         self.code_standart = ''
+        # число строк с мусором после заголовка
         self.rubbish_lines_afterHead = 0
+        # число строк заголовка
         self.head_lines = 0
+        # число строк с мусором до заголовка
         self.rubbish_lines_toHead = 0
-        self.sgnfnt_data_lines = 0
+        # число значащих строк данных
+        self.meaning_data_lines = 0
 
 
     # находим первый разделитель в файле
@@ -68,8 +76,8 @@ class fileSettings(object):
 
     # определяем, является ли заданная строка, строкой с числовыми данными
     def __isStringOfNumbers(self, stringLine, column_separator):
-        sgnf_data_line = [ch for ch in stringLine.split(column_separator) if ch != '']
-        for number in sgnf_data_line:
+        meaning_data_line = [ch for ch in stringLine.split(column_separator) if ch != '']
+        for number in meaning_data_line:
             try:
                 float(number)
             except ValueError:
@@ -96,18 +104,18 @@ class fileSettings(object):
     # функция работает с перевернутым списком строк
     def __rubbish_afterData(self, rows_of_data_reverse):
         # определение количества строк мусора после значащих данных
-        rubbishRows_afterSgnfData = -1
+        rubbishRows_afterMeaningData = -1
         number_of_columns = 0
         for line in rows_of_data_reverse:
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
             if count != 0 and count == number_of_columns and self.__isStringOfNumbers(line, self.column_sep) == True:
-                return rubbishRows_afterSgnfData, number_of_columns
+                return rubbishRows_afterMeaningData, number_of_columns
             else:
-                rubbishRows_afterSgnfData = rubbishRows_afterSgnfData + 1
+                rubbishRows_afterMeaningData = rubbishRows_afterMeaningData + 1
                 number_of_columns = count
         # количество строк мусора после значащих данных
-        return rubbishRows_afterSgnfData, number_of_columns
+        return rubbishRows_afterMeaningData, number_of_columns
 
     # определяем есть ли в строке буквы
     def __haveStringLetters(self, string):
@@ -172,10 +180,12 @@ class fileSettings(object):
         return '.'
 
     #определение разделителя колонок
+    # начинает поиск с последней строки
     def __searchColumnSeparator(self, rows_of_data):
         for i, line in enumerate(rows_of_data):
-            #
-            if self.__haveStringLetters(line)==True or re.search(r'[^\d\t- :;.,e]', line) is None:
+            # ищем начало строк со значащими данными (пропускаем строки с мусором)
+            #если в строке есть буквы или любые другие символы, кроме указанных в квадратных скобках, переходим к слебующей строке
+            if re.search(r'[^\d\t- :;.,e]', line) is None:
                 continue
             else:
                 rows_of_data = rows_of_data[i:]
@@ -183,6 +193,8 @@ class fileSettings(object):
 
         columns_sep = ' '
         columns_count = -1
+        #начинаем поиск разделителя колонок
+        #с последней строки
         for line in rows_of_data:
             if columns_count == len(self.__splitToColumns_specSep(line, columns_sep)):
                 break
@@ -254,7 +266,7 @@ class fileSettings(object):
             self.rubbish_lines_toHead = self.__rubbish_toHead(dataRows_begin_reversed[self.head_lines + self.rubbish_lines_afterHead:])
 
             # число строк значащих данных
-            self.sgnfnt_data_lines = len(
+            self.meaning_data_lines = len(
                 self.__splitToRows(s)) - self.rubbish_lines_toHead - self.rubbish_lines_afterHead - rubbish_lines_afterData - self.head_lines
 
             # десятичный разделитель
@@ -266,7 +278,7 @@ class fileSettings(object):
                     code_standart=self.code_standart, number_of_rows_with_rubbish_toHead=self.rubbish_lines_toHead,
                     number_of_head_lines=self.head_lines,
                     number_of_rows_with_rubbish_afterHead=self.rubbish_lines_afterHead,
-                    number_of_rows_with_significant_data=self.sgnfnt_data_lines)
+                    number_of_rows_with_significant_data=self.meaning_data_lines)
 
 
 

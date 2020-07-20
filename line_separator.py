@@ -1,7 +1,7 @@
-from fileSettings import fileSettings
+from autoSettings import autoSettings
 
 file = 'D:/ucheba/python/grid/10.txt'
-settings = fileSettings()
+settings = autoSettings()
 print(settings.get_auto_settings(file))
 
 
