@@ -75,8 +75,8 @@ class autoSettings(object):
         return code
 
     # определяем, является ли заданная строка, строкой с числовыми данными
-    def __isStringOfNumbers(self, stringLine, column_separator):
-        meaning_data_line = [ch for ch in stringLine.split(column_separator) if ch != '']
+    def __isStringOfNumbers(self, string, column_separator):
+        meaning_data_line = [ch for ch in re.split(column_separator, string) if ch != '']
         for number in meaning_data_line:
             try:
                 float(number)
@@ -208,7 +208,7 @@ class autoSettings(object):
                     if count == 1 or self.__isStringOfNumbers(line, column_separators[i]) == False:
                         del column_separators[i]
                     else:
-                        if (columns_sep == ' ' or columns_sep == '\t') and re.search(r'\s+', line) is not None:
+                        if (columns_sep == ' ' or columns_sep == '\t') and re.search(r'\s\s+', line) is not None:
                             columns_sep = r'\s+'
                             columns_count = len(self.__splitToColumns_specSep(line, columns_sep))
                         else:
@@ -253,7 +253,7 @@ class autoSettings(object):
             # число строк с мусором после данных
             # так же с конца файла!!!!
             rubbish_lines_afterData, number_of_columns = self.__rubbish_afterData(dataRows_end_reversed)
-            print(number_of_columns)
+            print('!!!' + str(number_of_columns))
             # число строк с мусором после заголовка
             # работаем с перевернутым файлом!!!!
             dataRows_begin_reversed = dataRows_begin.copy()
