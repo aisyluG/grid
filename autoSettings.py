@@ -7,7 +7,7 @@ class autoSettings(object):
         # возможные разделители строк (байты, потому что разделитель строк находим в строке байтов)
         self.row_separators = [b'\r\n', b'\n\r', b'\r', b'\n']
         # возможные разделители колонок
-        self.column_separators = pd.Series([' ', ';', ',', '\t', '.'])
+        self.column_separators = pd.Series([' ', ';', ',', '\t', '.', '\s+'])
         # детектор для определения кодировки
         self.detector = UniversalDetector()
         # разделитель строк
@@ -91,13 +91,13 @@ class autoSettings(object):
     # делим строку на столбцы
     def __splitToColumns(self, string):
         # убираем пустые строки, которые получается если несколько разделителей идут подряд
-        columns = [ch for ch in string.split(self.column_sep) if ch != '']
+        columns = [ch for ch in re.split(self.column_sep, string) if ch != '']
         return columns
 
     # делим строку на столбцы с заданным разделителем
     def __splitToColumns_specSep(self, string, column_separator):
         # убираем пустые строки, которые получается если несколько разделителей идут подряд
-        columns = [ch for ch in string.split(column_separator) if ch != '']
+        columns = [ch for ch in re.split(column_separator, string) if ch != '']
         return columns
 
     # определяем число строк с мусором в конце файла
@@ -105,11 +105,12 @@ class autoSettings(object):
     def __rubbish_afterData(self, rows_of_data_reverse):
         # определение количества строк мусора после значащих данных
         rubbishRows_afterMeaningData = -1
-        number_of_columns = 0
+        number_of_columns = -1
         for line in rows_of_data_reverse:
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
-            if count != 0 and count == number_of_columns and self.__isStringOfNumbers(line, self.column_sep) == True:
+            print(count)
+            if count != 1 and count == number_of_columns and self.__isStringOfNumbers(line, self.column_sep) == True:
                 return rubbishRows_afterMeaningData, number_of_columns
             else:
                 rubbishRows_afterMeaningData = rubbishRows_afterMeaningData + 1
@@ -118,12 +119,13 @@ class autoSettings(object):
         return rubbishRows_afterMeaningData, number_of_columns
 
     # определяем есть ли в строке буквы
-    def __haveStringLetters(self, string):
-        #ищем все буквы, кроме e, так как числа могут быть представлены в экспоненциальной форме
-        if re.search(r'[^\W\d_e]', string) is None:
-            return False
-        else:
-            return True
+    def __haveStringLettersOrDigits(self, string):
+        for cell in self.__splitToColumns(string):
+            if re.search(r'[^\W_]', string) is None:
+                return False
+            else:
+                continue
+        return True
 
     # определяем число строк с мусором после заголовка
     # функция работает с перевернутым списокмо строк
@@ -133,6 +135,7 @@ class autoSettings(object):
         for i, line in enumerate(rows_of_data_reverse):
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
+            print(count)
             if count == number_of_columns and self.__isStringOfNumbers(line, self.column_sep) == True:
                 continue
             else:
@@ -141,7 +144,7 @@ class autoSettings(object):
         for line in rows_of_data_reverse:
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
-            if count == number_of_columns and self.__haveStringLetters(line) == True:
+            if count == number_of_columns and self.__haveStringLettersOrDigits(line) == True:
                 return rubbishRows_afterHead, rows_of_data_reverse
             else:
                 rubbishRows_afterHead = rubbishRows_afterHead + 1
@@ -155,21 +158,22 @@ class autoSettings(object):
         headRows = 0
         for line in rows_of_data_reverse:
             count = len(self.__splitToColumns(line))
-            if count == number_of_columns and self.__haveStringLetters(line) == True:
+            if count == number_of_columns and self.__haveStringLettersOrDigits(line) == True:
                 headRows = headRows + 1
             else:
                 return headRows
         return headRows
 
-    # определяем число строк мусора до заголовка
-    def __rubbish_toHead(self, rows_of_data_reverse):
-        return len(rows_of_data_reverse)
+    # # определяем число строк мусора до заголовка
+    # def __rubbish_toHead(self, rows_of_data_reverse):
+    #     return len(rows_of_data_reverse)
 
     # определение десятичного разделителя
     def __decimalSeparator(self, numbers):
         for number in numbers:
             try:
                 float(number)
+                continue
             except ValueError:
                 try:
                     float(number.replace(',', '.'))
@@ -184,7 +188,7 @@ class autoSettings(object):
     def __searchColumnSeparator(self, rows_of_data):
         for i, line in enumerate(rows_of_data):
             # ищем начало строк со значащими данными (пропускаем строки с мусором)
-            #если в строке есть буквы или любые другие символы, кроме указанных в квадратных скобках, переходим к слебующей строке
+            #если в строке есть буквы или любые другие символы, кроме указанных в квадратных скобках, переходим к следующей строке
             if re.search(r'[^\d\t- :;.,e]', line) is None:
                 continue
             else:
@@ -193,20 +197,19 @@ class autoSettings(object):
 
         columns_sep = ' '
         columns_count = -1
-        #начинаем поиск разделителя колонок
-        #с последней строки
+        #начинаем поиск разделителя колонок с последней строки
+        column_separators = self.column_separators.copy()
         for line in rows_of_data:
             if columns_count == len(self.__splitToColumns_specSep(line, columns_sep)):
                 break
             else:
-                l = zip(list(self.column_separators.keys()), list(map(lambda x: len(self.__splitToColumns_specSep(line, x)), self.column_separators)))
+                l = zip(list(column_separators.keys()), list(map(lambda x: len(self.__splitToColumns_specSep(line, x)), column_separators)))
                 for i, count in l:
-                    if count == 1 or self.__isStringOfNumbers(line,self.column_separators[i]) == False:
-                        del self.column_separators[i]
+                    if count == 1 or self.__isStringOfNumbers(line, column_separators[i]) == False:
+                        del column_separators[i]
                     else:
-                        chars = re.search(r'(\s+)', line)
-                        if columns_sep==' ' and chars is not None:
-                            columns_sep = chars.group()
+                        if (columns_sep == ' ' or columns_sep == '\t') and re.search(r'\s+', line) is not None:
+                            columns_sep = r'\s+'
                             columns_count = len(self.__splitToColumns_specSep(line, columns_sep))
                         else:
                             columns_sep = self.column_separators[i]
@@ -236,7 +239,7 @@ class autoSettings(object):
             dataRows_end = [x.decode(self.code_standart) for x in dataRows_end]
 
             # удаляем лишние пробелы с начала и конца строк
-            # удаляем последнюю и первые строки соответственной, так как они могут быть неполными (так как читается N знаков,
+            # удаляем последнюю и первые строки соответственно, так как они могут быть неполными (так как читается N знаков,
             # а не определенное число строк)
             dataRows_begin = (list(map(lambda x: x.strip(), dataRows_begin)))[:-1]
             dataRows_end = (list(map(lambda x: x.strip(), dataRows_end)))[1:]
@@ -250,7 +253,7 @@ class autoSettings(object):
             # число строк с мусором после данных
             # так же с конца файла!!!!
             rubbish_lines_afterData, number_of_columns = self.__rubbish_afterData(dataRows_end_reversed)
-
+            print(number_of_columns)
             # число строк с мусором после заголовка
             # работаем с перевернутым файлом!!!!
             dataRows_begin_reversed = dataRows_begin.copy()
@@ -263,7 +266,7 @@ class autoSettings(object):
 
             # число строк с мусором до заголовка
             # работаем с перевернутым файлом!!!!
-            self.rubbish_lines_toHead = self.__rubbish_toHead(dataRows_begin_reversed[self.head_lines + self.rubbish_lines_afterHead:])
+            self.rubbish_lines_toHead = len(dataRows_begin_reversed[self.head_lines + self.rubbish_lines_afterHead:])
 
             # число строк значащих данных
             self.meaning_data_lines = len(
