@@ -92,6 +92,8 @@ class autoSettings(object):
     def __splitToColumns(self, string):
         # убираем пустые строки, которые получается если несколько разделителей идут подряд
         columns = [ch for ch in re.split(self.column_sep, string) if ch != '']
+        if re.split(self.column_sep, string).count('')!=0 and self.column_sep in [' ', '\t']:
+            self.column_sep = '\s+'
         return columns
 
     # делим строку на столбцы с заданным разделителем
@@ -109,7 +111,6 @@ class autoSettings(object):
         for line in rows_of_data_reverse:
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
-            print(count)
             if count != 1 and count == number_of_columns and self.__isStringOfNumbers(line, self.column_sep) == True:
                 return rubbishRows_afterMeaningData, number_of_columns
             else:
@@ -135,7 +136,6 @@ class autoSettings(object):
         for i, line in enumerate(rows_of_data_reverse):
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
-            print(count)
             if count == number_of_columns and self.__isStringOfNumbers(line, self.column_sep) == True:
                 continue
             else:
@@ -208,13 +208,14 @@ class autoSettings(object):
                     if count == 1 or self.__isStringOfNumbers(line, column_separators[i]) == False:
                         del column_separators[i]
                     else:
-                        if (columns_sep == ' ' or columns_sep == '\t') and re.search(r'\s\s+', line) is not None:
+                        if (columns_sep == ' ' or columns_sep == '\t') and re.search(r'(\s\s)', line) is not None:
                             columns_sep = r'\s+'
                             columns_count = len(self.__splitToColumns_specSep(line, columns_sep))
                         else:
                             columns_sep = self.column_separators[i]
                             columns_count = count
                         break
+
         return columns_sep
 
     def get_auto_settings(self, filename):
@@ -253,7 +254,6 @@ class autoSettings(object):
             # число строк с мусором после данных
             # так же с конца файла!!!!
             rubbish_lines_afterData, number_of_columns = self.__rubbish_afterData(dataRows_end_reversed)
-            print('!!!' + str(number_of_columns))
             # число строк с мусором после заголовка
             # работаем с перевернутым файлом!!!!
             dataRows_begin_reversed = dataRows_begin.copy()
@@ -281,7 +281,46 @@ class autoSettings(object):
                     code_standart=self.code_standart, number_of_rows_with_rubbish_toHead=self.rubbish_lines_toHead,
                     number_of_head_lines=self.head_lines,
                     number_of_rows_with_rubbish_afterHead=self.rubbish_lines_afterHead,
-                    number_of_rows_with_significant_data=self.meaning_data_lines)
+                    number_of_rows_with_meaningful_data=self.meaning_data_lines, number_of_rows_with_rubbish_afterData=rubbish_lines_afterData)
+
+    def check_settings(self, filename, settings):
+        column_sep = settings['column_separator']
+        row_sep = settings['row_separator']
+        decimal_sep = settings['decimal_separator']
+        code_std = settings['code_standart']
+        rubbish_toHead = settings['number_of_rows_with_rubbish_toHead']
+        rubbish_afterHead = settings['number_of_rows_with_rubbish_afterHead']
+        head = settings['number_of_head_lines']
+        meaning_data = settings['number_of_rows_with_meaningful_data']
+        rubbish_afterData = settings['number_of_rows_with_rubbish_afterData']
+
+        if column_sep == '\s+':
+            engine = 'python'
+        else:
+            engine = 'c'
+
+        try:
+            header = pd.read_csv(filename, sep=column_sep, engine=engine, decimal=decimal_sep, #lineterminator=row_sep,
+                               warn_bad_lines=True, header=None,
+                               skiprows=rubbish_toHead, nrows=head,
+                               encoding=code_std)
+
+            data = pd.read_csv(filename, sep=column_sep, header=None,
+                               engine=engine, decimal=decimal_sep, #lineterminator=row_sep,
+                               warn_bad_lines=True, skip_blank_lines=False,
+                               skiprows=list(range(rubbish_toHead+head+rubbish_afterHead)),
+                               nrows=meaning_data,
+                               encoding=code_std)
+        except Exception:
+            print('Exception')
+            return False
+
+        if len(header.columns)==len(data.columns) and len(header.columns) > 1:
+            return True
+        else:
+            return False
+
+
 
 
 
