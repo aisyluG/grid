@@ -27,7 +27,6 @@ class autoSettings(object):
         # число значащих строк данных
         self.meaning_data_lines = 0
 
-
     # находим первый разделитель в файле
     def __separator(self, byteString):
         for sep in self.row_separators:
@@ -92,7 +91,7 @@ class autoSettings(object):
     def __splitToColumns(self, string):
         # убираем пустые строки, которые получается если несколько разделителей идут подряд
         columns = [ch for ch in re.split(self.column_sep, string) if ch != '']
-        if re.split(self.column_sep, string).count('')!=0 and self.column_sep in [' ', '\t']:
+        if string != '' and re.split(self.column_sep, string).count('')!=0 and self.column_sep in [' ', '\t']:
             self.column_sep = '\s+'
         return columns
 
@@ -141,6 +140,9 @@ class autoSettings(object):
             else:
                 rows_of_data_reverse = rows_of_data_reverse[i:]
                 break
+        else:
+            rows_of_data_reverse=[]
+
         for line in rows_of_data_reverse:
             # число столбцов в строке
             count = len(self.__splitToColumns(line))
@@ -189,11 +191,11 @@ class autoSettings(object):
         for i, line in enumerate(rows_of_data):
             # ищем начало строк со значащими данными (пропускаем строки с мусором)
             #если в строке есть буквы или любые другие символы, кроме указанных в квадратных скобках, переходим к следующей строке
-            if re.search(r'[^\d\t- :;.,e]', line) is None:
-                continue
-            else:
+            if re.search(r'[^\d\t- :;.,e]', line) is None and line!='':
                 rows_of_data = rows_of_data[i:]
                 break
+            else:
+                continue
 
         columns_sep = ' '
         columns_count = -1
@@ -205,7 +207,7 @@ class autoSettings(object):
             else:
                 l = zip(list(column_separators.keys()), list(map(lambda x: len(self.__splitToColumns_specSep(line, x)), column_separators)))
                 for i, count in l:
-                    if count == 1 or self.__isStringOfNumbers(line, column_separators[i]) == False:
+                    if count <= 1 or self.__isStringOfNumbers(line, column_separators[i]) == False:
                         del column_separators[i]
                     else:
                         if (columns_sep == ' ' or columns_sep == '\t') and re.search(r'(\s\s)', line) is not None:
@@ -215,7 +217,6 @@ class autoSettings(object):
                             columns_sep = self.column_separators[i]
                             columns_count = count
                         break
-
         return columns_sep
 
     def get_auto_settings(self, filename):
@@ -315,7 +316,7 @@ class autoSettings(object):
             print('Exception')
             return False
 
-        if len(header.columns)==len(data.columns) and len(header.columns) > 1:
+        if (len(header.columns)==len(data.columns) or head==0) and len(data.columns) > 1:
             return True
         else:
             return False
