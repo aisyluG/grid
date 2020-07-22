@@ -282,7 +282,7 @@ class autoSettings(object):
                     code_standart=self.code_standart, number_of_rows_with_rubbish_toHead=self.rubbish_lines_toHead,
                     number_of_head_lines=self.head_lines,
                     number_of_rows_with_rubbish_afterHead=self.rubbish_lines_afterHead,
-                    number_of_rows_with_meaningful_data=self.meaning_data_lines, number_of_rows_with_rubbish_afterData=rubbish_lines_afterData)
+                    number_of_rows_with_meaningful_data=self.meaning_data_lines)
 
     def check_settings(self, filename, settings):
         column_sep = settings['column_separator']
@@ -293,7 +293,6 @@ class autoSettings(object):
         rubbish_afterHead = settings['number_of_rows_with_rubbish_afterHead']
         head = settings['number_of_head_lines']
         meaning_data = settings['number_of_rows_with_meaningful_data']
-        rubbish_afterData = settings['number_of_rows_with_rubbish_afterData']
 
         if column_sep == '\s+':
             engine = 'python'
@@ -306,20 +305,59 @@ class autoSettings(object):
                                skiprows=rubbish_toHead, nrows=head,
                                encoding=code_std)
 
-            data = pd.read_csv(filename, sep=column_sep, header=None,
+            data = pd.read_csv(filename, sep=column_sep, header=list(range(head)),
                                engine=engine, decimal=decimal_sep, #lineterminator=row_sep,
                                warn_bad_lines=True, skip_blank_lines=False,
-                               skiprows=list(range(rubbish_toHead+head+rubbish_afterHead)),
-                               nrows=meaning_data,
+                               skiprows=list(range(rubbish_toHead))+list(range(rubbish_toHead+head,rubbish_toHead+head+rubbish_afterHead)),
+                               #list(range(rubbish_toHead+head+rubbish_afterHead)),
+                               nrows=meaning_data+head,
                                encoding=code_std)
+
         except Exception:
             print('Exception')
             return False
 
-        if (len(header.columns)==len(data.columns) or head==0) and len(data.columns) > 1:
+        if (None not in data.columns.values or head==0) and len(data.columns) > 1:
             return True
         else:
             return False
+
+    def get_data(self, filename):
+        settings = self.get_auto_settings(filename)
+        if self.check_settings(filename, settings) == False:
+            return None
+        else:
+            column_sep = settings['column_separator']
+            row_sep = settings['row_separator']
+            decimal_sep = settings['decimal_separator']
+            code_std = settings['code_standart']
+            rubbish_toHead = settings['number_of_rows_with_rubbish_toHead']
+            rubbish_afterHead = settings['number_of_rows_with_rubbish_afterHead']
+            head = settings['number_of_head_lines']
+            meaning_data = settings['number_of_rows_with_meaningful_data']
+
+            if column_sep == '\s+':
+                engine = 'python'
+            else:
+                engine = 'c'
+
+            header = pd.read_csv(filename, sep=column_sep, engine=engine, decimal=decimal_sep,
+                                 # lineterminator=row_sep,
+                                 warn_bad_lines=True, header=None,
+                                 skiprows=rubbish_toHead, nrows=head,
+                                 encoding=code_std)
+
+            data = pd.read_csv(filename, sep=column_sep, header=None,
+                               engine=engine, decimal=decimal_sep,  # lineterminator=row_sep,
+                               warn_bad_lines=True, skip_blank_lines=False,
+                               skiprows=rubbish_toHead + head + rubbish_afterHead,
+                               nrows=meaning_data,
+                               encoding=code_std)
+            return header.values, data.values
+
+
+
+
 
 
 
