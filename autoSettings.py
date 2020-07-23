@@ -284,6 +284,7 @@ class autoSettings(object):
                     number_of_rows_with_rubbish_afterHead=self.rubbish_lines_afterHead,
                     number_of_rows_with_meaningful_data=self.meaning_data_lines)
 
+    # возвращет True если все хорошо,  и False, если файл кривой
     def check_settings(self, filename, settings):
         column_sep = settings['column_separator']
         row_sep = settings['row_separator']
@@ -317,7 +318,7 @@ class autoSettings(object):
             print('Exception')
             return False
 
-        if (None not in data.columns.values or head==0) and len(data.columns) > 1:
+        if (None not in data.values or head==0) and len(data.columns) > 1:
             return True
         else:
             return False

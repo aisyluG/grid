@@ -1,4 +1,6 @@
 import openpyxl  as xl
+import xlrd
+import re
 import pandas as pd
 file = 'D:/ucheba/python/grid/datasets_excel/42P - миник, хорнер, нолти.xlsx'
 
@@ -7,13 +9,23 @@ class autoSettingsExcel(object):
         self.book = None
         self.sheet_names = []
         self.sheets_count = 0
+        self.isXls = False
 
     def set_filename(self, file):
-        self.book = xl.load_workbook(file)
-        self.sheet_names = self.book.sheetnames
-        self.sheets_count = len(self.sheet_names)
+        if re.search(r'xls$', file) == None:
+            self.book = xl.load_workbook(file, read_only=True, data_only=True)
+            self.sheet_names = self.book.sheetnames
+            self.sheets_count = len(self.sheet_names)
+        else:
+            self.isXls = True
+            self.book = xlrd.open_workbook(file, on_demand=True)
+            self.sheet_names = self.book.sheet_names()
+            self.sheets_count = len(self.sheet_names)
+
 
     def __isNumber(self, cell):
+        if  type(cell) != str:
+            return True
         try:
             float(cell)
         except ValueError:
@@ -59,8 +71,6 @@ class autoSettingsExcel(object):
                 break
             else:
                 continue
-        print(begin)
-        print(end)
         if end < 0:
             return None
         return begin, end
@@ -83,7 +93,6 @@ class autoSettingsExcel(object):
                 end = sheet.iloc[-n].name
                 break
 
-        print(begin, end)
         if end < 0:
             return None
         return begin, end
@@ -91,13 +100,27 @@ class autoSettingsExcel(object):
     def get_sheet_names(self):
         return self.sheet_names
 
+    def __correcting_cells(self, cell):
+        if cell.value != '':
+            return cell.value
+        else:
+            return None
+
     def get_auto_settingsForSheet(self, sheet_number_or_name):
-        print('**')
-        sheet = pd.DataFrame(self.book[sheet_number_or_name].values)
+        if self.isXls == True:
+            if type(sheet_number_or_name) == int:
+                sheet = pd.DataFrame(self.book.sheet_by_index(sheet_number_or_name).get_rows())
+            else:
+                sheet = pd.DataFrame(self.book.sheet_by_name(sheet_number_or_name).get_rows())
+            sheet = sheet.applymap(self.__correcting_cells)
+        else:
+            sheet = pd.DataFrame(self.book[sheet_number_or_name].values)
         sheet = self.__del_blank_rows_and_columns(sheet)
         begin_and_end_header = self.__header_rows(sheet)
-        if begin_and_end_header == None:
+        if begin_and_end_header is None:
             begin_and_end_meaning_data = self.__meaning_rows(sheet)
         else:
             begin_and_end_meaning_data = self.__meaning_rows(sheet[begin_and_end_header[1] + 1:])
+        if begin_and_end_meaning_data is None:
+            return None
         return dict(header=begin_and_end_header, data=begin_and_end_meaning_data)
