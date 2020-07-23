@@ -2,7 +2,6 @@ import openpyxl  as xl
 import xlrd
 import re
 import pandas as pd
-file = 'D:/ucheba/python/grid/datasets_excel/42P - миник, хорнер, нолти.xlsx'
 
 class autoSettingsExcel(object):
     def __init__(self):
@@ -97,6 +96,13 @@ class autoSettingsExcel(object):
             return None
         return begin, end
 
+    def __meaning_columns(self, sheet):
+        for n, column in sheet.items():
+            count = column.count()
+            if count <= 1:
+                sheet = sheet.drop(n, axis=1)
+        return list(sheet.columns)
+
     def get_sheet_names(self):
         return self.sheet_names
 
@@ -121,6 +127,35 @@ class autoSettingsExcel(object):
             begin_and_end_meaning_data = self.__meaning_rows(sheet)
         else:
             begin_and_end_meaning_data = self.__meaning_rows(sheet[begin_and_end_header[1] + 1:])
+        columns = self.__meaning_columns(sheet[begin_and_end_meaning_data[0]:begin_and_end_meaning_data[1]])
         if begin_and_end_meaning_data is None:
             return None
-        return dict(header=begin_and_end_header, data=begin_and_end_meaning_data)
+        return dict(header=begin_and_end_header, data=begin_and_end_meaning_data, columns=columns)
+
+    def check_settings(self, filename, sheet_name, setting):
+        if setting is None:
+            return False
+        else:
+            begin_data, end_data = setting['data']
+            if setting['header'] is None:
+                header = None
+                nrows = end_data - begin_data + 1
+                skiprows = list(range(0, begin_data))
+            else:
+                begin_head, end_head = setting['header']
+                header = list(range(begin_head - end_head + 1))
+                nrows = end_data - begin_data + 1 + len(header)
+                skiprows = [x for x in list(range(0, begin_data)) if x < begin_head or x > end_head]
+            columns = setting['columns']
+            try:
+                table = pd.read_excel(filename, sheet_name=sheet_name,
+                                      header=header,
+                                      usecols=columns,
+                                      skiprows=skiprows,
+                                      nrows=nrows)
+            except Exception:
+                return False
+            return True
+
+
+
